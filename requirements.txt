@@ -1,4 +1,4 @@
-python==3.10.11
+
 absl-py==2.3.1
 aioice==0.10.1
 aiortc==1.14.0
