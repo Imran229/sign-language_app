@@ -50,9 +50,11 @@ def download_model_from_gdrive():
     
     return model_path
 
-# Load trained model
-@app.before_first_request
+# Load trained model at startup
+model = None
+
 def load_model_startup():
+    """Load model from Google Drive"""
     global model
     try:
         model_path = download_model_from_gdrive()
@@ -67,7 +69,9 @@ def load_model_startup():
         print(f"❌ Error loading model: {e}")
         model = None
 
-model = None
+# Load model when module is imported
+print("🚀 Initializing application...")
+load_model_startup()
 
 # MediaPipe setup
 mp_hands = mp.solutions.hands
