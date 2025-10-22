@@ -17,9 +17,9 @@ def download_model_from_gdrive():
     if not os.path.exists(model_path):
         print("📥 Downloading model from Google Drive...")
         
-        # YOUR GOOGLE DRIVE FILE ID HERE
+        # Google Drive File ID
         file_id = "1A2hpFwgtkTlC6OY_AxkT837UoeiFVXey"
-        url = f"https://drive.google.com/file/d/1A2hpFwgtkTlC6OY_AxkT837UoeiFVXey/view?usp=sharing={file_id}"
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
         
         try:
             # Use gdown with fuzzy match for large files
