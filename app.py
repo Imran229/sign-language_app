@@ -122,6 +122,8 @@ def video_feed():
 # -----------------------------
 # RUN APP
 # -----------------------------
-if __name__ == "__main__":
+if __name__ == '__main__':
+    # Get the port from the environment variable Render sets
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    # Run the app, listening on all available network interfaces
+    app.run(host='0.0.0.0', port=port)
