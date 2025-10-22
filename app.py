@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 MODEL_PATH = "model.p"
 DRIVE_FILE_ID = "1A2hpFwgtkTlC6OY_AxkT837UoeiFVXey"  # your Google Drive file ID
-DOWNLOAD_URL = f"https://drive.google.com/file/d/1A2hpFwgtkTlC6OY_AxkT837UoeiFVXey/view?usp=sharing={DRIVE_FILE_ID}"
+DOWNLOAD_URL = f"https://drive.google.com/file/d/1A2hpFwgtkTlC6OY_AxkT837UoeiFVXey={DRIVE_FILE_ID}"
 
 # -----------------------------
 # DOWNLOAD MODEL IF NOT PRESENT
