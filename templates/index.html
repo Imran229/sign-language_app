@@ -262,115 +262,82 @@
             Made with ❤️ | ASL Sign Language Detector
         </div>
     </div>
-
     <script>
-        let videoStream = null;
-        let detectionInterval = null;
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status');
-        const predictionBox = document.getElementById('predictionBox');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
+    let videoStream = null;
+    let detectionInterval = null;
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+    const predictionBox = document.getElementById('predictionBox');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
 
-        async function startDetection() {
-            try {
-                // Request camera access
-                videoStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                
-                video.srcObject = videoStream;
-                
-                status.className = 'status active';
-                status.innerHTML = '✅ Camera Active - Detection Running';
-                
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                
-                // Start processing frames
-                video.addEventListener('loadeddata', () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    // Process frames every 200ms
-                    detectionInterval = setInterval(processFrame, 200);
-                });
-                
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                status.className = 'status inactive';
-                status.innerHTML = '❌ Camera access denied or not available';
-                alert('Please allow camera access to use this app!');
-            }
+    async function startDetection() {
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = videoStream;
+
+            status.className = 'status active';
+            status.textContent = '✅ Camera Active - Detection Running';
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            video.addEventListener('loadeddata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                detectionInterval = setInterval(processFrame, 300);
+            });
+        } catch (err) {
+            console.error('Camera error:', err);
+            alert('Please allow camera access');
         }
+    }
 
-        async function processFrame() {
-            if (!video.videoWidth) return;
-            
-            // Draw video frame to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Convert canvas to base64
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
-            
-            try {
-                // Send to backend for processing
-                const response = await fetch('/process_frame', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image: imageData })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.prediction) {
-                        predictionBox.textContent = `Detected: ${data.prediction}`;
-                        predictionBox.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
-                    } else {
-                        predictionBox.textContent = 'No hand detected';
-                        predictionBox.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    }
-                }
-            } catch (error) {
-                console.error('Processing error:', error);
+    async function processFrame() {
+        if (!video.videoWidth) return;
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg');
+
+        try {
+            const res = await fetch('/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            });
+
+            const data = await res.json();
+
+            if (data.prediction) {
+                predictionBox.textContent = `Detected: ${data.prediction}`;
+                predictionBox.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            } else {
+                predictionBox.textContent = 'No hand detected';
+                predictionBox.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
             }
+        } catch (err) {
+            console.log('Frame send error:', err);
         }
+    }
 
-        function stopDetection() {
-            // Stop video stream
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-            
-            // Clear interval
-            if (detectionInterval) {
-                clearInterval(detectionInterval);
-                detectionInterval = null;
-            }
-            
-            video.srcObject = null;
-            
-            status.className = 'status inactive';
-            status.innerHTML = '📹 Camera Stopped';
-            
-            predictionBox.textContent = 'Camera stopped';
-            predictionBox.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
+    function stopDetection() {
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        if (detectionInterval) clearInterval(detectionInterval);
 
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', stopDetection);
+        video.srcObject = null;
+        status.className = 'status inactive';
+        status.textContent = '📹 Camera Stopped';
+        predictionBox.textContent = 'Camera stopped';
+
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+
+    window.addEventListener('beforeunload', stopDetection);
     </script>
+
+    
 </body>
 </html>
