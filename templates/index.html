@@ -60,27 +60,43 @@
             position: relative;
             width: 100%;
             max-width: 800px;
-            margin: 0 auto 30px;
+            margin: 0 auto 20px;
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             background: #000;
             min-height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        #video {
+        #webcam {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #processedFrame {
             width: 100%;
             height: auto;
             display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
-        .loading {
-            color: white;
-            font-size: 1.2em;
+        .prediction-box {
             text-align: center;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 3em;
+            font-weight: bold;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .status {
@@ -184,6 +200,10 @@
             font-size: 0.9em;
         }
 
+        canvas {
+            display: none;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -197,6 +217,10 @@
                 padding: 12px 25px;
                 font-size: 1em;
             }
+
+            .prediction-box {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
@@ -205,28 +229,32 @@
         <h1>🤟 Sign Language Detection</h1>
         <p class="subtitle">Real-time ASL Alphabet Recognition</p>
 
+        <div class="prediction-box" id="predictionBox">
+            Show a sign to detect
+        </div>
+
         <div id="status" class="status inactive">
             📹 Camera Inactive - Click Start to Begin
         </div>
 
         <div class="video-container">
-            <div id="loading" class="loading">Click "Start Detection" to begin</div>
-            <img id="video" alt="Video Feed">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
         </div>
 
         <div class="controls">
-            <button id="startBtn" class="btn-start" onclick="startCamera()">▶ START DETECTION</button>
-            <button id="stopBtn" class="btn-stop" onclick="stopCamera()" disabled>⏹ STOP</button>
+            <button id="startBtn" class="btn-start" onclick="startDetection()">▶ START DETECTION</button>
+            <button id="stopBtn" class="btn-stop" onclick="stopDetection()" disabled>⏹ STOP</button>
         </div>
 
         <div class="instructions">
             <h3>📝 Instructions</h3>
             <ul>
                 <li>Click "Start Detection" to activate the camera</li>
+                <li>Allow camera access when prompted</li>
                 <li>Show your hand sign clearly in front of the camera</li>
                 <li>Make sure your hand is well-lit and centered</li>
-                <li>The detected letter will appear on the video feed</li>
-                <li>Press "Stop" to turn off the camera</li>
+                <li>The detected letter will appear above the video</li>
             </ul>
         </div>
 
@@ -236,66 +264,113 @@
     </div>
 
     <script>
-        let isActive = false;
-        const video = document.getElementById('video');
-        const loading = document.getElementById('loading');
+        let videoStream = null;
+        let detectionInterval = null;
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
         const status = document.getElementById('status');
+        const predictionBox = document.getElementById('predictionBox');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
 
-        function startCamera() {
-            fetch('/start')
-                .then(response => response.json())
-                .then(data => {
-                    isActive = true;
-                    status.className = 'status active';
-                    status.innerHTML = '✅ Camera Active - Detection Running';
-                    
-                    // Show video feed
-                    loading.style.display = 'none';
-                    video.style.display = 'block';
-                    video.src = '/video_feed?' + new Date().getTime();
-                    
-                    // Update buttons
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                })
-                .catch(error => {
-                    console.error('Error starting camera:', error);
-                    status.className = 'status inactive';
-                    status.innerHTML = '❌ Error starting camera. Please check console.';
+        async function startDetection() {
+            try {
+                // Request camera access
+                videoStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
                 });
-        }
-
-        function stopCamera() {
-            fetch('/stop')
-                .then(response => response.json())
-                .then(data => {
-                    isActive = false;
-                    status.className = 'status inactive';
-                    status.innerHTML = '📹 Camera Stopped';
+                
+                video.srcObject = videoStream;
+                
+                status.className = 'status active';
+                status.innerHTML = '✅ Camera Active - Detection Running';
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // Start processing frames
+                video.addEventListener('loadeddata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
                     
-                    // Hide video
-                    video.style.display = 'none';
-                    video.src = '';
-                    loading.style.display = 'block';
-                    loading.textContent = 'Camera stopped';
-                    
-                    // Update buttons
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
-                })
-                .catch(error => {
-                    console.error('Error stopping camera:', error);
+                    // Process frames every 200ms
+                    detectionInterval = setInterval(processFrame, 200);
                 });
-        }
-
-        // Handle page unload
-        window.addEventListener('beforeunload', function() {
-            if (isActive) {
-                stopCamera();
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                status.className = 'status inactive';
+                status.innerHTML = '❌ Camera access denied or not available';
+                alert('Please allow camera access to use this app!');
             }
-        });
+        }
+
+        async function processFrame() {
+            if (!video.videoWidth) return;
+            
+            // Draw video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            try {
+                // Send to backend for processing
+                const response = await fetch('/process_frame', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.prediction) {
+                        predictionBox.textContent = `Detected: ${data.prediction}`;
+                        predictionBox.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+                    } else {
+                        predictionBox.textContent = 'No hand detected';
+                        predictionBox.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    }
+                }
+            } catch (error) {
+                console.error('Processing error:', error);
+            }
+        }
+
+        function stopDetection() {
+            // Stop video stream
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            
+            // Clear interval
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            video.srcObject = null;
+            
+            status.className = 'status inactive';
+            status.innerHTML = '📹 Camera Stopped';
+            
+            predictionBox.textContent = 'Camera stopped';
+            predictionBox.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopDetection);
     </script>
 </body>
 </html>
