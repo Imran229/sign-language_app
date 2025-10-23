@@ -207,4 +207,6 @@ if __name__ == '__main__':
     print("   - GET  /health")
     port = int(os.environ.get('PORT', 10000))
     print(f"🌐 Server running on http://0.0.0.0:{port}")
-    app.run(debug=True, host='0.0.0.0', port=port, threaded=True)
+    app.run(host="0.0.0.0", port=10000, debug=True, use_reloader=False)
+
+
