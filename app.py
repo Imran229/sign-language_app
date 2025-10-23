@@ -205,6 +205,6 @@ if __name__ == '__main__':
     print("   - GET  /")
     print("   - POST /process_frame")
     print("   - GET  /health")
-    port = int(os.environ.get('PORT', 5500))
+    port = int(os.environ.get('PORT', 10000))
     print(f"🌐 Server running on http://0.0.0.0:{port}")
     app.run(debug=True, host='0.0.0.0', port=port, threaded=True)
